@@ -35,6 +35,6 @@ jobs:
         run: |
           git config user.name "flight-tracker-bot"
           git config user.email "actions@github.com"
-          git add data/flights.db data/rotation_state.json
+          git add data/flights.db data/rotation_state.json data/resumen.md
           git diff --staged --quiet || git commit -m "Actualiza historial de precios [skip ci]"
           git push

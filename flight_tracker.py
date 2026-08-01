@@ -212,6 +212,55 @@ def search_ignav(outbound_date, return_date):
     return results
 
 
+def generate_summary_report(conn):
+    """Genera data/resumen.md con las ofertas más baratas encontradas hasta ahora,
+    para poder revisarlas directo en GitHub sin herramientas de SQLite."""
+    cur = conn.cursor()
+
+    total_rows = cur.execute("SELECT COUNT(*) FROM flight_prices").fetchone()[0]
+
+    cheapest = cur.execute("""
+        SELECT source, outbound_date, return_date, trip_length_days, price, currency,
+               stops, airline, query_timestamp
+        FROM flight_prices
+        ORDER BY price ASC
+        LIMIT 15
+    """).fetchall()
+
+    latest_run = cur.execute("SELECT MAX(query_timestamp) FROM flight_prices").fetchone()[0]
+
+    lines = [
+        "# Resumen de precios — CDMX → Seúl (ICN)",
+        "",
+        f"Última actualización: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
+        f"Total de consultas guardadas en el historial: {total_rows}",
+        f"Última corrida con datos: {latest_run or 'N/A'}",
+        f"Umbral de alerta configurado: ${config.PRICE_ALERT_THRESHOLD_MXN:,.0f} {config.CURRENCY}",
+        "",
+        "## Las 15 ofertas más baratas encontradas hasta ahora",
+        "",
+        "| Precio | Salida | Regreso | Noches | Escalas | Aerolínea | Fuente | Consultado |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+
+    if not cheapest:
+        lines.append("| _Todavía no hay datos guardados_ | | | | | | | |")
+    else:
+        for row in cheapest:
+            source, outbound, ret, length, price, currency, stops, airline, ts = row
+            stops_txt = "directo" if stops == 0 else f"{stops} escala(s)" if stops is not None else "?"
+            ts_short = ts[:16].replace("T", " ") if ts else ""
+            lines.append(
+                f"| ${price:,.0f} {currency} | {outbound} | {ret} | {length} | {stops_txt} | "
+                f"{airline} | {source} | {ts_short} |"
+            )
+
+    with open("data/resumen.md", "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+    print(f"\ndata/resumen.md actualizado ({total_rows} registros en el historial total).")
+
+
 # ---------------------------------------------------------------------------
 # Telegram
 # ---------------------------------------------------------------------------
@@ -258,6 +307,7 @@ def main():
             if r["currency"] == config.CURRENCY and r["price"] <= config.PRICE_ALERT_THRESHOLD_MXN:
                 alerts.append((outbound, ret, length, r["price"], r["stops"], r["airline"], "Ignav"))
 
+    generate_summary_report(conn)
     conn.close()
 
     state["serpapi_index"] = next_serpapi_index
