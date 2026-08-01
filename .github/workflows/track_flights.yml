@@ -1,0 +1,40 @@
+name: Track flight prices
+
+on:
+  schedule:
+    # Corre todos los días a las 13:00 UTC (~07:00 hora CDMX)
+    - cron: "0 13 * * *"
+  workflow_dispatch: {}   # permite correrlo manualmente desde la pestaña Actions
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tracker
+        env:
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python flight_tracker.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name "flight-tracker-bot"
+          git config user.email "actions@github.com"
+          git add data/flights.db data/rotation_state.json
+          git diff --staged --quiet || git commit -m "Actualiza historial de precios [skip ci]"
+          git push
