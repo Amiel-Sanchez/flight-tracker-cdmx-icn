@@ -14,7 +14,7 @@ DESTINATION = "ICN"     # Incheon, Seúl
 # --- Ventana de fechas objetivo ---
 # Define el rango de meses/días dentro del cual quieres comparar precios.
 # Verano 2027 (junio-agosto).
-TARGET_RANGE_START = datetime.date(2027, 6, 1)
+TARGET_RANGE_START = datetime.date(2027, 5, 1)
 TARGET_RANGE_END = datetime.date(2027, 8, 31)
 
 # Duración del viaje (noches en Seúl) que quieres comparar.
@@ -24,7 +24,7 @@ TRIP_LENGTHS_DAYS = [14, 16, 18]
 # Cada cuántos días generar una fecha de salida candidata dentro del rango.
 # Con 3 días de intervalo se generan más combinaciones (más preciso, gasta más cuota).
 # Con 7 días se generan menos (más barato de correr, revisa cuota disponible).
-DATE_STEP_DAYS = 5
+DATE_STEP_DAYS = 3
 
 # --- Cuánto revisar por corrida (para no gastar la cuota gratuita de golpe) ---
 # El script guarda un "puntero" (rotation_state.json) y en cada corrida
