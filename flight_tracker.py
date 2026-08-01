@@ -136,6 +136,10 @@ def search_serpapi(outbound_date, return_date):
         print(f"  [SerpApi] Error de red/API: {e}")
         return []
 
+    if "error" in data:
+        print(f"  [SerpApi] La API devolvió un error: {data['error']}")
+        return []
+
     results = []
     for bucket in ("best_flights", "other_flights"):
         for offer in data.get(bucket, []):
@@ -145,6 +149,8 @@ def search_serpapi(outbound_date, return_date):
             airline = legs[0]["airline"] if legs else "desconocida"
             if price is not None:
                 results.append({"price": price, "stops": stops, "airline": airline})
+
+    print(f"  [SerpApi] {len(results)} ofertas encontradas.")
     return results
 
 
@@ -159,23 +165,58 @@ def _sky_headers():
     return {"X-RapidAPI-Key": RAPIDAPI_KEY, "X-RapidAPI-Host": SKY_SCRAPPER_HOST}
 
 
-def _resolve_sky_id(query):
-    """Busca skyId y entityId de un aeropuerto (con caché en memoria)."""
-    if query in _airport_cache:
-        return _airport_cache[query]
+def _extract_sky_and_entity_id(entry):
+    """Distintas versiones de la respuesta anidan estos campos distinto; probamos varias rutas."""
+    sky_id = (
+        entry.get("skyId")
+        or entry.get("navigation", {}).get("relevantFlightParams", {}).get("skyId")
+        or entry.get("presentation", {}).get("id")
+    )
+    entity_id = (
+        entry.get("entityId")
+        or entry.get("navigation", {}).get("entityId")
+        or entry.get("entityId")
+    )
+    return sky_id, entity_id
+
+
+def _resolve_sky_id(search_query, expected_iata):
+    """Busca skyId y entityId de un aeropuerto por NOMBRE (search_query), filtrando
+    por el código IATA esperado (expected_iata) entre los resultados. Se cachea
+    por expected_iata para no repetir la búsqueda en cada combinación de fechas."""
+    if expected_iata in _airport_cache:
+        return _airport_cache[expected_iata]
 
     url = f"https://{SKY_SCRAPPER_HOST}/api/v1/flights/searchAirport"
-    resp = requests.get(url, headers=_sky_headers(), params={"query": query, "locale": "es-MX"}, timeout=30)
+    resp = requests.get(url, headers=_sky_headers(), params={"query": search_query, "locale": "en-US"}, timeout=30)
     resp.raise_for_status()
-    data = resp.json().get("data", [])
+    payload = resp.json()
+    data = payload.get("data", [])
+
     if not data:
-        raise ValueError(f"No se encontró aeropuerto para '{query}'")
-    entry = data[0]
-    result = {
-        "skyId": entry.get("skyId") or entry.get("navigation", {}).get("relevantFlightParams", {}).get("skyId"),
-        "entityId": entry.get("entityId") or entry.get("navigation", {}).get("entityId"),
-    }
-    _airport_cache[query] = result
+        print(f"  [Sky Scrapper] Respuesta cruda de searchAirport para '{search_query}': {json.dumps(payload)[:500]}")
+        raise ValueError(f"No se encontró ningún resultado para '{search_query}'")
+
+    # Preferimos la entrada cuyo skyId coincide con el IATA esperado; si ninguna
+    # coincide exactamente, caemos de vuelta a la primera entrada devuelta.
+    chosen = None
+    for entry in data:
+        sky_id, _ = _extract_sky_and_entity_id(entry)
+        if sky_id == expected_iata:
+            chosen = entry
+            break
+    if chosen is None:
+        chosen = data[0]
+        print(f"  [Sky Scrapper] Ninguna coincidencia exacta con '{expected_iata}' para '{search_query}', "
+              f"usando la primera opción devuelta.")
+
+    sky_id, entity_id = _extract_sky_and_entity_id(chosen)
+    if not sky_id or not entity_id:
+        print(f"  [Sky Scrapper] Entrada elegida sin skyId/entityId reconocibles: {json.dumps(chosen)[:500]}")
+        raise ValueError(f"No se pudo extraer skyId/entityId para '{search_query}'")
+
+    result = {"skyId": sky_id, "entityId": entity_id}
+    _airport_cache[expected_iata] = result
     return result
 
 
@@ -187,8 +228,8 @@ def search_skyscanner(outbound_date, return_date):
         return []
 
     try:
-        origin = _resolve_sky_id(config.ORIGIN)
-        dest = _resolve_sky_id(config.DESTINATION)
+        origin = _resolve_sky_id(config.SKYSCANNER_ORIGIN_QUERY, config.ORIGIN)
+        dest = _resolve_sky_id(config.SKYSCANNER_DESTINATION_QUERY, config.DESTINATION)
 
         url = f"https://{SKY_SCRAPPER_HOST}/api/v1/flights/searchFlights"
         params = {
@@ -221,6 +262,8 @@ def search_skyscanner(outbound_date, return_date):
             airline = legs[0]["carriers"]["marketing"][0].get("name")
         if price is not None:
             results.append({"price": price, "stops": stops, "airline": airline or "desconocida"})
+
+    print(f"  [Sky Scrapper] {len(results)} ofertas encontradas.")
     return results
 
 

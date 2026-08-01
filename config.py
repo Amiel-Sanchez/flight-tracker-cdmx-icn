@@ -11,6 +11,12 @@ import datetime
 ORIGIN = "MEX"          # Ciudad de México
 DESTINATION = "ICN"     # Incheon, Seúl
 
+# Sky Scrapper (Skyscanner) a veces no resuelve bien buscando solo por código
+# IATA ("MEX"), así que para ESE proveedor buscamos por nombre y filtramos por
+# el código IATA esperado (ORIGIN/DESTINATION de arriba).
+SKYSCANNER_ORIGIN_QUERY = "Mexico City"
+SKYSCANNER_DESTINATION_QUERY = "Seoul Incheon"
+
 # --- Ventana de fechas objetivo ---
 # Define el rango de meses/días dentro del cual quieres comparar precios.
 # Verano 2027 (junio-agosto).
@@ -18,8 +24,8 @@ TARGET_RANGE_START = datetime.date(2027, 6, 1)
 TARGET_RANGE_END = datetime.date(2027, 8, 31)
 
 # Duración del viaje (noches en Seúl) que quieres comparar.
-# 12-18 noches.
-TRIP_LENGTHS_DAYS = [14, 14, 18]
+# 14-18 noches.
+TRIP_LENGTHS_DAYS = [14, 16, 18]
 
 # Cada cuántos días generar una fecha de salida candidata dentro del rango.
 # Con 3 días de intervalo se generan más combinaciones (más preciso, gasta más cuota).
