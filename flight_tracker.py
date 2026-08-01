@@ -97,12 +97,12 @@ def init_db():
     return conn
 
 
-def save_result(conn, source, outbound_date, return_date, trip_length, price, stops, airline):
+def save_result(conn, source, outbound_date, return_date, trip_length, price, stops, airline, currency=None):
     conn.execute(
         """INSERT INTO flight_prices
            (source, outbound_date, return_date, trip_length_days, price, currency, stops, airline, query_timestamp)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (source, outbound_date, return_date, trip_length, price, config.CURRENCY, stops, airline,
+        (source, outbound_date, return_date, trip_length, price, currency or config.CURRENCY, stops, airline,
          datetime.datetime.utcnow().isoformat()),
     )
     conn.commit()
@@ -178,7 +178,7 @@ def search_ignav(outbound_date, return_date):
         "departure_date": outbound_date,
         "return_date": return_date,
         "adults": 1,
-        "currency": config.CURRENCY,
+        "market": "MX",  # controla moneda/localización de los resultados (MXN para México)
     }
     if config.STOPS_PREFERENCE == "direct":
         body["max_stops"] = 0
@@ -190,6 +190,8 @@ def search_ignav(outbound_date, return_date):
             json=body,
             timeout=30,
         )
+        if not resp.ok:
+            print(f"  [Ignav] {resp.status_code} en la solicitud. Respuesta: {resp.text[:500]}")
         resp.raise_for_status()
         data = resp.json()
     except requests.RequestException as e:
@@ -199,11 +201,12 @@ def search_ignav(outbound_date, return_date):
     results = []
     for it in data.get("itineraries", []):
         price = it.get("price", {}).get("amount")
+        price_currency = it.get("price", {}).get("currency", config.CURRENCY)
         outbound_leg = it.get("outbound", {})
         stops = max(len(outbound_leg.get("segments", [])) - 1, 0)
         airline = outbound_leg.get("carrier", "desconocida")
         if price is not None:
-            results.append({"price": price, "stops": stops, "airline": airline})
+            results.append({"price": price, "currency": price_currency, "stops": stops, "airline": airline})
 
     print(f"  [Ignav] {len(results)} ofertas encontradas.")
     return results
@@ -251,8 +254,8 @@ def main():
     for outbound, ret, length in ignav_batch:
         print(f"  -> {outbound} / {ret} ({length} noches)")
         for r in search_ignav(outbound, ret):
-            save_result(conn, "ignav", outbound, ret, length, r["price"], r["stops"], r["airline"])
-            if r["price"] <= config.PRICE_ALERT_THRESHOLD_MXN:
+            save_result(conn, "ignav", outbound, ret, length, r["price"], r["stops"], r["airline"], r["currency"])
+            if r["currency"] == config.CURRENCY and r["price"] <= config.PRICE_ALERT_THRESHOLD_MXN:
                 alerts.append((outbound, ret, length, r["price"], r["stops"], r["airline"], "Ignav"))
 
     conn.close()
