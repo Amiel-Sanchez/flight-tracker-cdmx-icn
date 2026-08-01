@@ -11,20 +11,11 @@ import datetime
 ORIGIN = "MEX"          # Ciudad de México
 DESTINATION = "ICN"     # Incheon, Seúl
 
-# Sky Scrapper (Skyscanner) a veces no resuelve bien buscando solo por código
-# IATA ("MEX"), así que para ESE proveedor buscamos por nombre y filtramos por
-# el código IATA esperado (ORIGIN/DESTINATION de arriba).
-SKYSCANNER_ORIGIN_QUERY = "Mexico City"
-SKYSCANNER_DESTINATION_QUERY = "Seoul Incheon"
-
 # --- Ventana de fechas objetivo ---
 # Define el rango de meses/días dentro del cual quieres comparar precios.
 # Verano 2027 (junio-agosto).
-#TARGET_RANGE_START = datetime.date(2027, 6, 1)
-TARGET_RANGE_START = datetime.date(2026, 9, 1)
-
-#TARGET_RANGE_END = datetime.date(2027, 8, 31)
-TARGET_RANGE_END = datetime.date(2026, 9, 15)
+TARGET_RANGE_START = datetime.date(2027, 6, 1)
+TARGET_RANGE_END = datetime.date(2027, 8, 31)
 
 # Duración del viaje (noches en Seúl) que quieres comparar.
 # 14-18 noches.
@@ -38,8 +29,12 @@ DATE_STEP_DAYS = 5
 # --- Cuánto revisar por corrida (para no gastar la cuota gratuita de golpe) ---
 # El script guarda un "puntero" (rotation_state.json) y en cada corrida
 # solo consulta este número de combinaciones nuevas, avanzando la próxima vez.
-COMBOS_PER_RUN_SERPAPI = 6      # SerpApi: 250 free/mes -> ~8/día es seguro
-COMBOS_PER_RUN_SKYSCANNER = 3   # RapidAPI Sky Scrapper: 100 free/mes -> ~3/día es seguro
+COMBOS_PER_RUN_SERPAPI = 6   # SerpApi: 250 free/mes -> ~8/día es seguro
+# Ignav: 1,000 requests gratis EN TOTAL (no se renuevan cada mes). Con 3/día
+# te duran ~330 días (todo el año hasta tu viaje). Después de agotarse, son
+# $2 USD por cada 1,000 requests adicionales — prácticamente nada si decides
+# seguir corriéndolo, pero mejor estirar el free tier lo más posible.
+COMBOS_PER_RUN_IGNAV = 3
 
 # --- Preferencia de escalas ---
 # "any"    -> trae todo y lo guardamos con la columna stops para comparar tú mismo

@@ -1,9 +1,10 @@
 """
 Rastreador de vuelos CDMX -> Seúl (ICN).
 
-Consulta dos fuentes gratuitas (SerpApi/Google Flights y Sky Scrapper/Skyscanner
-vía RapidAPI), guarda cada resultado en SQLite con fecha de consulta, y manda
-una alerta a Telegram si algún precio cae por debajo del umbral configurado.
+Consulta dos fuentes gratuitas (SerpApi/Google Flights e Ignav, ambas APIs
+de fare search dedicadas), guarda cada resultado en SQLite con fecha de
+consulta, y manda una alerta a Telegram si algún precio cae por debajo del
+umbral configurado.
 
 Diseñado para correr 1 vez al día vía GitHub Actions, consumiendo poca cuota
 cada vez (ver config.py) y rotando qué combinaciones de fechas revisa en cada
@@ -13,6 +14,7 @@ las cuotas gratuitas.
 
 import os
 import json
+import time
 import sqlite3
 import datetime
 import itertools
@@ -21,11 +23,9 @@ import requests
 import config
 
 SERPAPI_KEY = os.environ.get("SERPAPI_KEY")
-RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY")
+IGNAV_API_KEY = os.environ.get("IGNAV_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-
-SKY_SCRAPPER_HOST = "sky-scrapper.p.rapidapi.com"
 
 
 # ---------------------------------------------------------------------------
@@ -47,8 +47,12 @@ def generate_candidate_combos():
 def load_rotation_state():
     if os.path.exists(config.ROTATION_STATE_PATH):
         with open(config.ROTATION_STATE_PATH) as f:
-            return json.load(f)
-    return {"serpapi_index": 0, "skyscanner_index": 0}
+            state = json.load(f)
+            # Compatibilidad si el archivo viejo todavía tiene skyscanner_index
+            if "ignav_index" not in state:
+                state["ignav_index"] = state.pop("skyscanner_index", 0)
+            return state
+    return {"serpapi_index": 0, "ignav_index": 0}
 
 
 def save_rotation_state(state):
@@ -158,112 +162,50 @@ def search_serpapi(outbound_date, return_date):
 # Sky Scrapper (Skyscanner vía RapidAPI)
 # ---------------------------------------------------------------------------
 
-_airport_cache = {}
+# ---------------------------------------------------------------------------
+# Ignav (fare search dedicada)
+# ---------------------------------------------------------------------------
 
-
-def _sky_headers():
-    return {"X-RapidAPI-Key": RAPIDAPI_KEY, "X-RapidAPI-Host": SKY_SCRAPPER_HOST}
-
-
-def _extract_sky_and_entity_id(entry):
-    """Distintas versiones de la respuesta anidan estos campos distinto; probamos varias rutas."""
-    sky_id = (
-        entry.get("skyId")
-        or entry.get("navigation", {}).get("relevantFlightParams", {}).get("skyId")
-        or entry.get("presentation", {}).get("id")
-    )
-    entity_id = (
-        entry.get("entityId")
-        or entry.get("navigation", {}).get("entityId")
-        or entry.get("entityId")
-    )
-    return sky_id, entity_id
-
-
-def _resolve_sky_id(search_query, expected_iata):
-    """Busca skyId y entityId de un aeropuerto por NOMBRE (search_query), filtrando
-    por el código IATA esperado (expected_iata) entre los resultados. Se cachea
-    por expected_iata para no repetir la búsqueda en cada combinación de fechas."""
-    if expected_iata in _airport_cache:
-        return _airport_cache[expected_iata]
-
-    url = f"https://{SKY_SCRAPPER_HOST}/api/v1/flights/searchAirport"
-    resp = requests.get(url, headers=_sky_headers(), params={"query": search_query, "locale": "en-US"}, timeout=30)
-    resp.raise_for_status()
-    payload = resp.json()
-    data = payload.get("data", [])
-
-    if not data:
-        print(f"  [Sky Scrapper] Respuesta cruda de searchAirport para '{search_query}': {json.dumps(payload)[:500]}")
-        raise ValueError(f"No se encontró ningún resultado para '{search_query}'")
-
-    # Preferimos la entrada cuyo skyId coincide con el IATA esperado; si ninguna
-    # coincide exactamente, caemos de vuelta a la primera entrada devuelta.
-    chosen = None
-    for entry in data:
-        sky_id, _ = _extract_sky_and_entity_id(entry)
-        if sky_id == expected_iata:
-            chosen = entry
-            break
-    if chosen is None:
-        chosen = data[0]
-        print(f"  [Sky Scrapper] Ninguna coincidencia exacta con '{expected_iata}' para '{search_query}', "
-              f"usando la primera opción devuelta.")
-
-    sky_id, entity_id = _extract_sky_and_entity_id(chosen)
-    if not sky_id or not entity_id:
-        print(f"  [Sky Scrapper] Entrada elegida sin skyId/entityId reconocibles: {json.dumps(chosen)[:500]}")
-        raise ValueError(f"No se pudo extraer skyId/entityId para '{search_query}'")
-
-    result = {"skyId": sky_id, "entityId": entity_id}
-    _airport_cache[expected_iata] = result
-    return result
-
-
-def search_skyscanner(outbound_date, return_date):
-    """Devuelve una lista de dicts: price, stops, airline (solo tramo de ida,
-    Sky Scrapper cotiza por fecha; para ida y vuelta se llama dos veces)."""
-    if not RAPIDAPI_KEY:
-        print("  [Sky Scrapper] RAPIDAPI_KEY no configurada, se omite.")
+def search_ignav(outbound_date, return_date):
+    """Devuelve una lista de dicts: price, stops, airline."""
+    if not IGNAV_API_KEY:
+        print("  [Ignav] IGNAV_API_KEY no configurada, se omite.")
         return []
 
-    try:
-        origin = _resolve_sky_id(config.SKYSCANNER_ORIGIN_QUERY, config.ORIGIN)
-        dest = _resolve_sky_id(config.SKYSCANNER_DESTINATION_QUERY, config.DESTINATION)
+    body = {
+        "origin": config.ORIGIN,
+        "destination": config.DESTINATION,
+        "departure_date": outbound_date,
+        "return_date": return_date,
+        "adults": 1,
+        "currency": config.CURRENCY,
+    }
+    if config.STOPS_PREFERENCE == "direct":
+        body["max_stops"] = 0
 
-        url = f"https://{SKY_SCRAPPER_HOST}/api/v1/flights/searchFlights"
-        params = {
-            "originSkyId": origin["skyId"],
-            "destinationSkyId": dest["skyId"],
-            "originEntityId": origin["entityId"],
-            "destinationEntityId": dest["entityId"],
-            "date": outbound_date,
-            "returnDate": return_date,
-            "adults": "1",
-            "currency": config.CURRENCY,
-            "market": "es-MX",
-            "countryCode": "MX",
-        }
-        resp = requests.get(url, headers=_sky_headers(), params=params, timeout=30)
+    try:
+        resp = requests.post(
+            "https://ignav.com/api/fares/round-trip",
+            headers={"X-Api-Key": IGNAV_API_KEY, "Content-Type": "application/json"},
+            json=body,
+            timeout=30,
+        )
         resp.raise_for_status()
         data = resp.json()
-    except (requests.RequestException, ValueError) as e:
-        print(f"  [Sky Scrapper] Error: {e}")
+    except requests.RequestException as e:
+        print(f"  [Ignav] Error de red/API: {e}")
         return []
 
     results = []
-    itineraries = data.get("data", {}).get("itineraries", [])
-    for it in itineraries:
-        price = it.get("price", {}).get("raw")
-        legs = it.get("legs", [])
-        stops = legs[0].get("stopCount", 0) if legs else None
-        airline = None
-        if legs and legs[0].get("carriers", {}).get("marketing"):
-            airline = legs[0]["carriers"]["marketing"][0].get("name")
+    for it in data.get("itineraries", []):
+        price = it.get("price", {}).get("amount")
+        outbound_leg = it.get("outbound", {})
+        stops = max(len(outbound_leg.get("segments", [])) - 1, 0)
+        airline = outbound_leg.get("carrier", "desconocida")
         if price is not None:
-            results.append({"price": price, "stops": stops, "airline": airline or "desconocida"})
+            results.append({"price": price, "stops": stops, "airline": airline})
 
-    print(f"  [Sky Scrapper] {len(results)} ofertas encontradas.")
+    print(f"  [Ignav] {len(results)} ofertas encontradas.")
     return results
 
 
@@ -292,7 +234,7 @@ def main():
 
     state = load_rotation_state()
     serpapi_batch, next_serpapi_index = next_batch(all_combos, state["serpapi_index"], config.COMBOS_PER_RUN_SERPAPI)
-    sky_batch, next_sky_index = next_batch(all_combos, state["skyscanner_index"], config.COMBOS_PER_RUN_SKYSCANNER)
+    ignav_batch, next_ignav_index = next_batch(all_combos, state["ignav_index"], config.COMBOS_PER_RUN_IGNAV)
 
     conn = init_db()
     alerts = []
@@ -305,18 +247,18 @@ def main():
             if r["price"] <= config.PRICE_ALERT_THRESHOLD_MXN:
                 alerts.append((outbound, ret, length, r["price"], r["stops"], r["airline"], "SerpApi"))
 
-    print(f"\nConsultando Sky Scrapper para {len(sky_batch)} combinaciones...")
-    for outbound, ret, length in sky_batch:
+    print(f"\nConsultando Ignav para {len(ignav_batch)} combinaciones...")
+    for outbound, ret, length in ignav_batch:
         print(f"  -> {outbound} / {ret} ({length} noches)")
-        for r in search_skyscanner(outbound, ret):
-            save_result(conn, "skyscanner", outbound, ret, length, r["price"], r["stops"], r["airline"])
+        for r in search_ignav(outbound, ret):
+            save_result(conn, "ignav", outbound, ret, length, r["price"], r["stops"], r["airline"])
             if r["price"] <= config.PRICE_ALERT_THRESHOLD_MXN:
-                alerts.append((outbound, ret, length, r["price"], r["stops"], r["airline"], "Sky Scrapper"))
+                alerts.append((outbound, ret, length, r["price"], r["stops"], r["airline"], "Ignav"))
 
     conn.close()
 
     state["serpapi_index"] = next_serpapi_index
-    state["skyscanner_index"] = next_sky_index
+    state["ignav_index"] = next_ignav_index
     save_rotation_state(state)
 
     if alerts:

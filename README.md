@@ -1,6 +1,6 @@
 # Rastreador de vuelos CDMX → Seúl (ICN)
 
-Consulta SerpApi (Google Flights) y Sky Scrapper (Skyscanner vía RapidAPI) todos los
+Consulta SerpApi (Google Flights) e Ignav (fare search dedicada) todos los
 días, guarda el historial de precios en SQLite dentro del mismo repo, y te avisa por
 Telegram cuando encuentra un precio por debajo de tu umbral.
 
@@ -15,10 +15,11 @@ historial de búsquedas ni rutas de viaje) en GitHub.
 1. Crea cuenta en https://serpapi.com/users/sign_up
 2. Copia tu API key desde el dashboard.
 
-**Sky Scrapper / RapidAPI** (100 requests/mes gratis):
-1. Crea cuenta en https://rapidapi.com
-2. Busca "Sky Scrapper" (por apiheya) y suscríbete al plan **BASIC (gratis)**.
-3. Copia tu `X-RapidAPI-Key` desde la pestaña "Endpoints" de esa API.
+**Ignav** (1,000 requests gratis, total — no se renuevan cada mes):
+1. Crea cuenta en https://ignav.com/signup
+2. Copia tu API key desde el dashboard.
+3. Después de agotar el free tier, cuesta $2 USD por cada 1,000 requests
+   adicionales (solo se cobran las exitosas) — muy barato si decides seguir.
 
 ## 3. Crea tu bot de Telegram
 
@@ -36,7 +37,7 @@ agrega estos cuatro:
 | Nombre | Valor |
 |---|---|
 | `SERPAPI_KEY` | tu API key de SerpApi |
-| `RAPIDAPI_KEY` | tu API key de RapidAPI |
+| `IGNAV_API_KEY` | tu API key de Ignav |
 | `TELEGRAM_BOT_TOKEN` | el token de tu bot |
 | `TELEGRAM_CHAT_ID` | tu chat id |
 
@@ -60,11 +61,11 @@ pedirme más adelante que te arme un dashboard/gráfica a partir de esos datos.
 ## Notas importantes
 
 - **Cuotas**: el script solo consulta un lote pequeño de combinaciones de fechas
-  cada día (configurable en `COMBOS_PER_RUN_SERPAPI` / `COMBOS_PER_RUN_SKYSCANNER`)
+  cada día (configurable en `COMBOS_PER_RUN_SERPAPI` / `COMBOS_PER_RUN_IGNAV`)
   y va rotando cuáles revisa, para cubrir todo tu rango de fechas a lo largo del
-  mes sin agotar la cuota gratuita.
-- **Fragilidad**: ninguna de las dos fuentes es 100% oficial (ambas dependen de
-  terceros que replican datos de Google Flights / Skyscanner), así que si un día
-  fallan sin razón aparente, probablemente cambiaron algo en su servicio — no es
+  mes sin agotar la cuota gratuita. Recuerda que el free tier de Ignav es un
+  total único (1,000 requests), no mensual — a 3/día te duran ~330 días.
+- **Fragilidad**: SerpApi replica datos de Google Flights, así que si un día
+  falla sin razón aparente, probablemente cambió algo en ese servicio — no es
   necesariamente un error en el script.
 - **Repo privado**: recomendado para que tu historial de búsquedas no sea público.
