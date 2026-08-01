@@ -20,8 +20,11 @@ SKYSCANNER_DESTINATION_QUERY = "Seoul Incheon"
 # --- Ventana de fechas objetivo ---
 # Define el rango de meses/días dentro del cual quieres comparar precios.
 # Verano 2027 (junio-agosto).
-TARGET_RANGE_START = datetime.date(2027, 6, 1)
-TARGET_RANGE_END = datetime.date(2027, 8, 31)
+#TARGET_RANGE_START = datetime.date(2027, 6, 1)
+TARGET_RANGE_START = datetime.date(2026, 9, 1)
+
+#TARGET_RANGE_END = datetime.date(2027, 8, 31)
+TARGET_RANGE_END = datetime.date(2026, 9, 15)
 
 # Duración del viaje (noches en Seúl) que quieres comparar.
 # 14-18 noches.
