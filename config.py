@@ -24,17 +24,17 @@ TRIP_LENGTHS_DAYS = [14, 16, 18]
 # Cada cuántos días generar una fecha de salida candidata dentro del rango.
 # Con 3 días de intervalo se generan más combinaciones (más preciso, gasta más cuota).
 # Con 7 días se generan menos (más barato de correr, revisa cuota disponible).
-DATE_STEP_DAYS = 3
+DATE_STEP_DAYS = 5
 
 # --- Cuánto revisar por corrida (para no gastar la cuota gratuita de golpe) ---
 # El script guarda un "puntero" (rotation_state.json) y en cada corrida
 # solo consulta este número de combinaciones nuevas, avanzando la próxima vez.
-COMBOS_PER_RUN_SERPAPI = 6   # SerpApi: 250 free/mes -> ~8/día es seguro
+COMBOS_PER_RUN_SERPAPI = 8   # SerpApi: 250 free/mes -> ~8/día es seguro
 # Ignav: 1,000 requests gratis EN TOTAL (no se renuevan cada mes). Con 3/día
 # te duran ~330 días (todo el año hasta tu viaje). Después de agotarse, son
 # $2 USD por cada 1,000 requests adicionales — prácticamente nada si decides
 # seguir corriéndolo, pero mejor estirar el free tier lo más posible.
-COMBOS_PER_RUN_IGNAV = 3
+COMBOS_PER_RUN_IGNAV = 12
 
 # --- Preferencia de escalas ---
 # "any"    -> trae todo y lo guardamos con la columna stops para comparar tú mismo
