@@ -129,8 +129,11 @@ def search_serpapi(outbound_date, return_date):
         "type": "1",  # round trip
         "api_key": SERPAPI_KEY,
     }
-    if config.STOPS_PREFERENCE == "direct":
-        params["stops"] = "1"  # 1 = solo directos en la API de SerpApi
+    # Mapeo de MAX_STOPS al parámetro "stops" de SerpApi:
+    # 0="cualquiera" (default), 1="solo directos", 2="1 escala o menos", 3="2 escalas o menos"
+    stops_param_map = {0: "1", 1: "2", 2: "3"}
+    if config.MAX_STOPS in stops_param_map:
+        params["stops"] = stops_param_map[config.MAX_STOPS]
 
     try:
         resp = requests.get("https://serpapi.com/search", params=params, timeout=30)
@@ -151,6 +154,8 @@ def search_serpapi(outbound_date, return_date):
             legs = offer.get("flights", [])
             stops = max(len(legs) - 1, 0)
             airline = legs[0]["airline"] if legs else "desconocida"
+            if config.MAX_STOPS is not None and stops > config.MAX_STOPS:
+                continue
             if price is not None:
                 results.append({"price": price, "stops": stops, "airline": airline})
 
@@ -180,8 +185,8 @@ def search_ignav(outbound_date, return_date):
         "adults": 1,
         "market": "MX",  # controla moneda/localización de los resultados (MXN para México)
     }
-    if config.STOPS_PREFERENCE == "direct":
-        body["max_stops"] = 0
+    if config.MAX_STOPS is not None:
+        body["max_stops"] = config.MAX_STOPS
 
     try:
         resp = requests.post(
@@ -205,6 +210,8 @@ def search_ignav(outbound_date, return_date):
         outbound_leg = it.get("outbound", {})
         stops = max(len(outbound_leg.get("segments", [])) - 1, 0)
         airline = outbound_leg.get("carrier", "desconocida")
+        if config.MAX_STOPS is not None and stops > config.MAX_STOPS:
+            continue
         if price is not None:
             results.append({"price": price, "currency": price_currency, "stops": stops, "airline": airline})
 
@@ -261,6 +268,74 @@ def generate_summary_report(conn):
     print(f"\ndata/resumen.md actualizado ({total_rows} registros en el historial total).")
 
 
+def export_json_for_dashboard(conn):
+    """Genera docs/data.json con todo el historial, para el dashboard filtrable
+    en docs/index.html (publicado vía GitHub Pages)."""
+    cur = conn.cursor()
+    rows = cur.execute("""
+        SELECT source, outbound_date, return_date, trip_length_days, price, currency,
+               stops, airline, query_timestamp
+        FROM flight_prices
+        ORDER BY query_timestamp DESC
+    """).fetchall()
+
+    records = [
+        {
+            "source": r[0], "outbound_date": r[1], "return_date": r[2],
+            "trip_length_days": r[3], "price": r[4], "currency": r[5],
+            "stops": r[6], "airline": r[7], "query_timestamp": r[8],
+        }
+        for r in rows
+    ]
+
+    payload = {
+        "meta": {
+            "origin": config.ORIGIN,
+            "destination": config.DESTINATION,
+            "threshold": config.PRICE_ALERT_THRESHOLD_MXN,
+            "currency": config.CURRENCY,
+            "generated_at": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        },
+        "records": records,
+    }
+
+    os.makedirs("docs", exist_ok=True)
+    with open("docs/data.json", "w") as f:
+        json.dump(payload, f, ensure_ascii=False)
+
+    print(f"docs/data.json actualizado ({len(records)} registros).")
+
+
+def export_dashboard_json(conn):
+    """Genera docs/data.json con todo el historial, para que la página de
+    GitHub Pages (docs/index.html) lo lea y permita filtrar desde el navegador."""
+    cur = conn.cursor()
+    rows = cur.execute("""
+        SELECT source, outbound_date, return_date, trip_length_days, price, currency,
+               stops, airline, query_timestamp
+        FROM flight_prices
+        ORDER BY query_timestamp DESC
+    """).fetchall()
+
+    payload = {
+        "generated_at": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        "rows": [
+            {
+                "source": r[0], "outbound_date": r[1], "return_date": r[2],
+                "trip_length_days": r[3], "price": r[4], "currency": r[5],
+                "stops": r[6], "airline": r[7], "query_timestamp": r[8],
+            }
+            for r in rows
+        ],
+    }
+
+    os.makedirs("docs", exist_ok=True)
+    with open("docs/data.json", "w") as f:
+        json.dump(payload, f)
+
+    print(f"docs/data.json actualizado ({len(rows)} registros).")
+
+
 # ---------------------------------------------------------------------------
 # Telegram
 # ---------------------------------------------------------------------------
@@ -308,6 +383,7 @@ def main():
                 alerts.append((outbound, ret, length, r["price"], r["stops"], r["airline"], "Ignav"))
 
     generate_summary_report(conn)
+    export_dashboard_json(conn)
     conn.close()
 
     state["serpapi_index"] = next_serpapi_index

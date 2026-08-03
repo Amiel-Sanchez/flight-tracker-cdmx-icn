@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MEX ⇄ ICN — Historial de precios</title>
+<style>
+  :root {
+    --bg: #12151a;
+    --panel: #1a1e26;
+    --panel-2: #20252f;
+    --line: #2a3040;
+    --text: #e8e6e1;
+    --text-dim: #8b93a1;
+    --amber: #ffb300;
+    --green: #4ade80;
+    --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+
+  header {
+    padding: 28px 18px 18px;
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+  .route {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin: 0 0 6px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin: 0;
+  }
+  .status-row {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    margin-top: 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .status-row span b { color: var(--text); font-weight: 600; }
+
+  .filters {
+    padding: 16px 18px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .filters .full { grid-column: 1 / -1; }
+  .field label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+  .field input, .field select {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 10px 10px;
+    border-radius: 8px;
+    -webkit-appearance: none; appearance: none;
+  }
+  .field input:focus, .field select:focus {
+    outline: 2px solid var(--amber);
+    outline-offset: 1px;
+  }
+
+  #count {
+    padding: 12px 18px 0;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+
+  #list { padding: 10px 18px 40px; display: flex; flex-direction: column; gap: 10px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 14px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 14px;
+    align-items: center;
+  }
+  .card.deal { border-color: var(--green); box-shadow: 0 0 0 1px var(--green) inset; }
+
+  .price {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--amber);
+    grid-row: 1 / 3;
+    white-space: nowrap;
+  }
+  .card.deal .price { color: var(--green); }
+
+  .dates {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+  }
+  .meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .tag {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+  }
+  .tag.deal-tag { color: var(--green); border-color: var(--green); }
+
+  #empty {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 14px;
+    display: none;
+  }
+
+  footer {
+    padding: 20px 18px 40px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="route">MEX → ICN</p>
+  <h1>Historial de precios</h1>
+  <p class="subtitle">Ciudad de México → Seúl (Incheon), ida y vuelta</p>
+  <div class="status-row">
+    <span>Última actualización: <b id="stat-updated">—</b></span>
+    <span>Registros totales: <b id="stat-total">—</b></span>
+  </div>
+</header>
+
+<div class="filters">
+  <div class="field">
+    <label for="f-min">Precio mín. (MXN)</label>
+    <input type="number" id="f-min" inputmode="numeric" placeholder="0">
+  </div>
+  <div class="field">
+    <label for="f-max">Precio máx. (MXN)</label>
+    <input type="number" id="f-max" inputmode="numeric" placeholder="Sin límite">
+  </div>
+  <div class="field">
+    <label for="f-stops">Escalas</label>
+    <select id="f-stops">
+      <option value="">Cualquiera</option>
+      <option value="0">Directo</option>
+      <option value="1">Máx. 1 escala</option>
+      <option value="2">Máx. 2 escalas</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="f-source">Fuente</label>
+    <select id="f-source">
+      <option value="">Todas</option>
+      <option value="serpapi">SerpApi</option>
+      <option value="ignav">Ignav</option>
+    </select>
+  </div>
+  <div class="field full">
+    <label for="f-month">Mes de salida</label>
+    <select id="f-month">
+      <option value="">Todos los meses</option>
+    </select>
+  </div>
+  <div class="field full">
+    <label for="f-sort">Ordenar por</label>
+    <select id="f-sort">
+      <option value="price-asc">Precio: más barato primero</option>
+      <option value="price-desc">Precio: más caro primero</option>
+      <option value="outbound-asc">Fecha de salida: más próxima primero</option>
+      <option value="recent">Consultado más recientemente</option>
+    </select>
+  </div>
+</div>
+
+<p id="count">Cargando…</p>
+<div id="list"></div>
+<p id="empty">No hay resultados que coincidan con estos filtros.</p>
+
+<footer>flight-tracker · datos generados automáticamente cada día</footer>
+
+<script>
+const THRESHOLD = 22000; // debe coincidir con PRICE_ALERT_THRESHOLD_MXN en config.py
+
+const MONTHS = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+
+function fmtDate(iso) {
+  const [y, m, d] = iso.split("-");
+  return `${d} ${MONTHS[parseInt(m,10)-1]} ${y}`;
+}
+
+let allRows = [];
+
+function populateMonths(rows) {
+  const months = new Set(rows.map(r => r.outbound_date.slice(0, 7)));
+  const sorted = [...months].sort();
+  const sel = document.getElementById("f-month");
+  for (const ym of sorted) {
+    const [y, m] = ym.split("-");
+    const opt = document.createElement("option");
+    opt.value = ym;
+    opt.textContent = `${MONTHS[parseInt(m,10)-1]} ${y}`;
+    sel.appendChild(opt);
+  }
+}
+
+function render() {
+  const min = parseFloat(document.getElementById("f-min").value) || null;
+  const max = parseFloat(document.getElementById("f-max").value) || null;
+  const stopsF = document.getElementById("f-stops").value;
+  const sourceF = document.getElementById("f-source").value;
+  const monthF = document.getElementById("f-month").value;
+  const sortF = document.getElementById("f-sort").value;
+
+  let rows = allRows.filter(r => {
+    if (min !== null && r.price < min) return false;
+    if (max !== null && r.price > max) return false;
+    if (stopsF !== "" && r.stops > parseInt(stopsF, 10)) return false;
+    if (sourceF !== "" && r.source !== sourceF) return false;
+    if (monthF !== "" && !r.outbound_date.startsWith(monthF)) return false;
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    if (sortF === "price-asc") return a.price - b.price;
+    if (sortF === "price-desc") return b.price - a.price;
+    if (sortF === "outbound-asc") return a.outbound_date.localeCompare(b.outbound_date);
+    if (sortF === "recent") return b.query_timestamp.localeCompare(a.query_timestamp);
+    return 0;
+  });
+
+  document.getElementById("count").textContent = `${rows.length} resultado${rows.length === 1 ? "" : "s"}`;
+
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+  document.getElementById("empty").style.display = rows.length ? "none" : "block";
+
+  for (const r of rows) {
+    const isDeal = r.price <= THRESHOLD && r.currency === "MXN";
+    const card = document.createElement("div");
+    card.className = "card" + (isDeal ? " deal" : "");
+    const stopsTxt = r.stops === 0 ? "directo" : `${r.stops} escala${r.stops > 1 ? "s" : ""}`;
+    card.innerHTML = `
+      <div class="price">$${Math.round(r.price).toLocaleString("es-MX")}<br><span style="font-size:10px;color:var(--text-dim);font-weight:400;">${r.currency}</span></div>
+      <div class="dates">${fmtDate(r.outbound_date)} → ${fmtDate(r.return_date)}</div>
+      <div class="meta">
+        <span class="tag">${r.trip_length_days} noches</span>
+        <span class="tag">${stopsTxt}</span>
+        <span class="tag">${r.airline}</span>
+        <span class="tag">${r.source}</span>
+        ${isDeal ? '<span class="tag deal-tag">bajo umbral</span>' : ""}
+      </div>
+    `;
+    list.appendChild(card);
+  }
+}
+
+fetch("data.json")
+  .then(res => res.json())
+  .then(payload => {
+    allRows = payload.rows || [];
+    document.getElementById("stat-updated").textContent = payload.generated_at || "—";
+    document.getElementById("stat-total").textContent = allRows.length;
+    populateMonths(allRows);
+    render();
+    document.querySelectorAll(".filters input, .filters select").forEach(el => {
+      el.addEventListener("input", render);
+      el.addEventListener("change", render);
+    });
+  })
+  .catch(err => {
+    document.getElementById("count").textContent = "No se pudo cargar data.json todavía — corre el workflow al menos una vez.";
+  });
+</script>
+
+</body>
+</html>
