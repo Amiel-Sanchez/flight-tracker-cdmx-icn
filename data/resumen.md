@@ -1,14 +1,17 @@
 # Resumen de precios — CDMX → Seúl (ICN)
 
-Última actualización: 2026-08-12 14:26 UTC
-Total de consultas guardadas en el historial: 4088
-Última corrida con datos: 2026-08-10T14:24:30.163496
+Última actualización: 2026-08-13 14:27 UTC
+Total de consultas guardadas en el historial: 4274
+Última corrida con datos: 2026-08-13T14:27:14.825994
 Umbral de alerta configurado: $22,000 MXN
 
 ## Las 15 ofertas más baratas encontradas hasta ahora
 
 | Precio | Salida | Regreso | Noches | Escalas | Aerolínea | Fuente | Consultado |
 |---|---|---|---|---|---|---|---|
+| $21,574 MXN | 2027-01-01 | 2027-01-11 | 10 | 1 escala(s) | Aeromexico | ignav | 2026-08-13 14:25 |
+| $21,574 MXN | 2027-01-01 | 2027-01-15 | 14 | 1 escala(s) | Aeromexico | ignav | 2026-08-13 14:25 |
+| $22,055 MXN | 2027-01-01 | 2027-01-13 | 12 | 1 escala(s) | Aeromexico | ignav | 2026-08-13 14:25 |
 | $22,474 MXN | 2026-09-06 | 2026-09-22 | 16 | 1 escala(s) | Aeromexico | serpapi | 2026-08-01 17:48 |
 | $22,628 MXN | 2026-09-06 | 2026-09-22 | 16 | 2 escala(s) | Aeromexico | serpapi | 2026-08-01 17:48 |
 | $22,628 MXN | 2027-02-10 | 2027-02-24 | 14 | 2 escala(s) | Aeromexico | serpapi | 2026-08-02 14:37 |
@@ -21,6 +24,3 @@ Umbral de alerta configurado: $22,000 MXN
 | $22,628 MXN | 2027-04-21 | 2027-05-05 | 14 | 2 escala(s) | Aeromexico | ignav | 2026-08-03 15:22 |
 | $22,628 MXN | 2027-04-21 | 2027-05-07 | 16 | 2 escala(s) | Aeromexico | ignav | 2026-08-03 15:22 |
 | $22,628 MXN | 2027-04-21 | 2027-05-09 | 18 | 2 escala(s) | Aeromexico | ignav | 2026-08-03 15:22 |
-| $22,718 MXN | 2026-09-11 | 2026-09-27 | 16 | 2 escala(s) | Hainan | serpapi | 2026-08-01 17:49 |
-| $22,729 MXN | 2026-09-11 | 2026-09-29 | 18 | 1 escala(s) | WestJet | serpapi | 2026-08-01 17:49 |
-| $23,379 MXN | 2026-09-11 | 2026-09-25 | 14 | 1 escala(s) | WestJet | serpapi | 2026-08-01 17:49 |
