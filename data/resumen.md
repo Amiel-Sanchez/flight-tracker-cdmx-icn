@@ -1,8 +1,8 @@
 # Resumen de precios — CDMX → Seúl (ICN)
 
-Última actualización: 2026-08-21 13:50 UTC
-Total de consultas guardadas en el historial: 5650
-Última corrida con datos: 2026-08-21T13:50:51.916137
+Última actualización: 2026-08-22 13:36 UTC
+Total de consultas guardadas en el historial: 5905
+Última corrida con datos: 2026-08-22T13:36:03.776512
 Umbral de alerta configurado: $22,000 MXN
 
 ## Las 15 ofertas más baratas encontradas hasta ahora
@@ -11,6 +11,7 @@ Umbral de alerta configurado: $22,000 MXN
 |---|---|---|---|---|---|---|---|
 | $21,574 MXN | 2027-01-01 | 2027-01-11 | 10 | 1 escala(s) | Aeromexico | ignav | 2026-08-13 14:25 |
 | $21,574 MXN | 2027-01-01 | 2027-01-15 | 14 | 1 escala(s) | Aeromexico | ignav | 2026-08-13 14:25 |
+| $21,895 MXN | 2027-05-26 | 2027-06-07 | 12 | 1 escala(s) | Aeromexico | ignav | 2026-08-22 13:35 |
 | $21,896 MXN | 2027-02-15 | 2027-02-25 | 10 | 1 escala(s) | Aeromexico | ignav | 2026-08-21 13:48 |
 | $21,896 MXN | 2027-02-15 | 2027-03-01 | 14 | 1 escala(s) | Aeromexico | ignav | 2026-08-21 13:48 |
 | $21,896 MXN | 2027-02-25 | 2027-03-09 | 12 | 1 escala(s) | Aeromexico | ignav | 2026-08-21 13:48 |
@@ -23,4 +24,3 @@ Umbral de alerta configurado: $22,000 MXN
 | $22,018 MXN | 2027-01-21 | 2027-02-02 | 12 | 1 escala(s) | Aeromexico | ignav | 2026-08-20 13:52 |
 | $22,018 MXN | 2027-01-21 | 2027-02-04 | 14 | 1 escala(s) | Aeromexico | ignav | 2026-08-20 13:52 |
 | $22,018 MXN | 2027-01-26 | 2027-02-09 | 14 | 1 escala(s) | Aeromexico | ignav | 2026-08-20 13:52 |
-| $22,023 MXN | 2027-02-15 | 2027-02-25 | 10 | 1 escala(s) | Aeromexico | ignav | 2026-08-21 13:48 |
