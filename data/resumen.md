@@ -1,8 +1,8 @@
 # Resumen de precios — CDMX → Seúl (ICN)
 
-Última actualización: 2026-08-31 19:29 UTC
-Total de consultas guardadas en el historial: 7588
-Última corrida con datos: 2026-08-31T19:27:06.434995
+Última actualización: 2026-09-01 17:19 UTC
+Total de consultas guardadas en el historial: 7667
+Última corrida con datos: 2026-09-01T17:12:54.143674
 Umbral de alerta configurado: $22,000 MXN
 
 ## Las 15 ofertas más baratas encontradas hasta ahora
